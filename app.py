@@ -1,60 +1,63 @@
 import streamlit as st
-import os
 from PIL import Image
-import io
-import PyPDF2
+import os
 import zipfile
+import io
+from PyPDF2 import PdfReader, PdfWriter
 
-st.set_page_config(page_title="File Kompresor", layout="centered")
+def get_size_in_kb(size_bytes):
+    return round(size_bytes / 1024, 2)
 
-st.title("📦 File Kompresor")
-st.write("Upload file dan dapatkan versi terkompresinya.")
+def compress_image(uploaded_file):
+    image = Image.open(uploaded_file)
+    compressed_io = io.BytesIO()
+    image.save(compressed_io, format='JPEG', quality=30)
+    compressed_io.seek(0)
+    return compressed_io
 
-uploaded_file = st.file_uploader("Upload file (Gambar, PDF, atau .txt)", type=["jpg", "jpeg", "png", "pdf", "txt"])
-
-def compress_image(image_file, output_name):
-    image = Image.open(image_file)
-    buffer = io.BytesIO()
-    image.save(buffer, format="JPEG", quality=30)  # Lebih kecil kualitas = lebih kompres
-    buffer.seek(0)
-    return buffer, output_name + "_compressed.jpg"
-
-def compress_text(file, output_name):
-    text = file.read().decode("utf-8")
-    compressed = text.encode("utf-8")
-    buffer = io.BytesIO()
-    with zipfile.ZipFile(buffer, 'w', zipfile.ZIP_DEFLATED) as zip_file:
-        zip_file.writestr(output_name + "_compressed.txt", compressed)
-    buffer.seek(0)
-    return buffer, output_name + "_compressed.zip"
-
-def compress_pdf(file, output_name):
-    reader = PyPDF2.PdfReader(file)
-    writer = PyPDF2.PdfWriter()
+def compress_pdf(uploaded_file):
+    reader = PdfReader(uploaded_file)
+    writer = PdfWriter()
     for page in reader.pages:
         writer.add_page(page)
-    buffer = io.BytesIO()
-    writer.write(buffer)
-    buffer.seek(0)
-    return buffer, output_name + "_compressed.pdf"
+    compressed_io = io.BytesIO()
+    writer.write(compressed_io)
+    compressed_io.seek(0)
+    return compressed_io
 
-if uploaded_file:
-    file_type = uploaded_file.type
-    file_name = os.path.splitext(uploaded_file.name)[0]
+def compress_text(uploaded_file):
+    compressed_io = io.BytesIO()
+    with zipfile.ZipFile(compressed_io, 'w', zipfile.ZIP_DEFLATED) as zipf:
+        zipf.writestr(uploaded_file.name, uploaded_file.getvalue())
+    compressed_io.seek(0)
+    return compressed_io
 
-    if "image" in file_type:
-        result, download_name = compress_image(uploaded_file, file_name)
-        st.success("Gambar berhasil dikompres!")
-        st.download_button("Download", result, file_name=download_name)
-    
-    elif "pdf" in file_type:
-        result, download_name = compress_pdf(uploaded_file, file_name)
-        st.success("PDF berhasil dikompres (struktur minimal)!")
-        st.download_button("Download", result, file_name=download_name)
-    
-    elif "text" in file_type or uploaded_file.name.endswith(".txt"):
-        result, download_name = compress_text(uploaded_file, file_name)
-        st.success("File teks berhasil dikompres!")
-        st.download_button("Download", result, file_name=download_name)
-    else:
-        st.error("Jenis file belum didukung.")
+st.title("🔻 Kompres File Online")
+
+uploaded_file = st.file_uploader("Unggah file (gambar, PDF, atau teks):")
+
+if uploaded_file is not None:
+    file_size_kb = get_size_in_kb(len(uploaded_file.getvalue()))
+    st.write("📦 Ukuran file asli:", file_size_kb, "KB")
+
+    filename, ext = os.path.splitext(uploaded_file.name)
+    compressed_data = None
+    download_filename = filename + "_compressed" + ext
+
+    if uploaded_file.type.startswith("image"):
+        compressed_data = compress_image(uploaded_file)
+    elif uploaded_file.type == "application/pdf":
+        compressed_data = compress_pdf(uploaded_file)
+    elif uploaded_file.type.startswith("text") or ext == ".txt":
+        compressed_data = compress_text(uploaded_file)
+        download_filename = filename + "_compressed.zip"
+
+    if compressed_data:
+        compressed_size_kb = get_size_in_kb(len(compressed_data.getvalue()))
+        st.write("🗜️ Ukuran file setelah kompres:", compressed_size_kb, "KB")
+        st.download_button(
+            label="⬇️ Unduh File Terkompresi",
+            data=compressed_data,
+            file_name=download_filename,
+            mime="application/octet-stream"
+        )
