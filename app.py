@@ -12,23 +12,23 @@ st.write("Upload file dan dapatkan versi terkompresinya.")
 
 uploaded_file = st.file_uploader("Upload file (Gambar, PDF, atau .txt)", type=["jpg", "jpeg", "png", "pdf", "txt"])
 
-def compress_image(image_file):
+def compress_image(image_file, output_name):
     image = Image.open(image_file)
     buffer = io.BytesIO()
-    image.save(buffer, format="JPEG", quality=40)  # 40% kualitas
+    image.save(buffer, format="JPEG", quality=30)  # Lebih kecil kualitas = lebih kompres
     buffer.seek(0)
-    return buffer
+    return buffer, output_name + "_compressed.jpg"
 
-def compress_text(file):
+def compress_text(file, output_name):
     text = file.read().decode("utf-8")
     compressed = text.encode("utf-8")
     buffer = io.BytesIO()
     with zipfile.ZipFile(buffer, 'w', zipfile.ZIP_DEFLATED) as zip_file:
-        zip_file.writestr("compressed.txt", compressed)
+        zip_file.writestr(output_name + "_compressed.txt", compressed)
     buffer.seek(0)
-    return buffer
+    return buffer, output_name + "_compressed.zip"
 
-def compress_pdf(file):
+def compress_pdf(file, output_name):
     reader = PyPDF2.PdfReader(file)
     writer = PyPDF2.PdfWriter()
     for page in reader.pages:
@@ -36,24 +36,25 @@ def compress_pdf(file):
     buffer = io.BytesIO()
     writer.write(buffer)
     buffer.seek(0)
-    return buffer
+    return buffer, output_name + "_compressed.pdf"
 
 if uploaded_file:
     file_type = uploaded_file.type
+    file_name = os.path.splitext(uploaded_file.name)[0]
 
     if "image" in file_type:
-        result = compress_image(uploaded_file)
+        result, download_name = compress_image(uploaded_file, file_name)
         st.success("Gambar berhasil dikompres!")
-        st.download_button("Download Gambar Terkompresi", result, file_name="compressed.jpg")
+        st.download_button("Download", result, file_name=download_name)
     
     elif "pdf" in file_type:
-        result = compress_pdf(uploaded_file)
+        result, download_name = compress_pdf(uploaded_file, file_name)
         st.success("PDF berhasil dikompres (struktur minimal)!")
-        st.download_button("Download PDF Terkompresi", result, file_name="compressed.pdf")
+        st.download_button("Download", result, file_name=download_name)
     
     elif "text" in file_type or uploaded_file.name.endswith(".txt"):
-        result = compress_text(uploaded_file)
+        result, download_name = compress_text(uploaded_file, file_name)
         st.success("File teks berhasil dikompres!")
-        st.download_button("Download Teks Terkompresi (.zip)", result, file_name="compressed_text.zip")
+        st.download_button("Download", result, file_name=download_name)
     else:
         st.error("Jenis file belum didukung.")
