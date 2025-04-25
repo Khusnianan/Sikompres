@@ -58,9 +58,10 @@ def compress_txt_to_docx(uploaded_file):
     compressed_io.seek(0)
     return compressed_io, '.docx'
 
-def decompress_rle_to_docx(uploaded_file):
-    encoded_data = uploaded_file.read().decode('utf-8', errors='ignore')
-    decoded_text = run_length_decode(encoded_data)
+def decompress_docx_to_docx(uploaded_file):
+    doc = Document(uploaded_file)
+    full_text = "\n".join([para.text for para in doc.paragraphs])
+    decoded_text = run_length_decode(full_text)
 
     new_doc = Document()
     new_doc.add_paragraph(decoded_text)
@@ -70,15 +71,32 @@ def decompress_rle_to_docx(uploaded_file):
     decompressed_io.seek(0)
     return decompressed_io, '.docx'
 
-def compress_pdf(uploaded_file):
+def decompress_txt_to_docx(uploaded_file):
+    text_data = uploaded_file.read().decode('utf-8', errors='ignore')
+    decoded_text = run_length_decode(text_data)
+
+    new_doc = Document()
+    new_doc.add_paragraph(decoded_text)
+
+    decompressed_io = io.BytesIO()
+    new_doc.save(decompressed_io)
+    decompressed_io.seek(0)
+    return decompressed_io, '.docx'
+
+def decompress_pdf_to_pdf(uploaded_file):
     reader = PdfReader(uploaded_file)
-    writer = PdfWriter()
+    full_text = ""
     for page in reader.pages:
-        writer.add_page(page)
-    compressed_io = io.BytesIO()
-    writer.write(compressed_io)
-    compressed_io.seek(0)
-    return compressed_io, '.pdf'
+        full_text += page.extract_text()
+
+    decoded_text = run_length_decode(full_text)
+
+    new_pdf = PdfWriter()
+    new_pdf.add_page(reader.pages[0])  # Just keep the first page for simplicity
+    decompressed_io = io.BytesIO()
+    new_pdf.write(decompressed_io)
+    decompressed_io.seek(0)
+    return decompressed_io, '.pdf'
 
 # -------------------- UI --------------------
 
@@ -86,7 +104,7 @@ st.set_page_config(page_title="SiKompres", page_icon="📄")
 st.markdown("<h1 style='text-align: center;'>📄 SiKompres</h1>", unsafe_allow_html=True)
 st.markdown("<p style='text-align: center;'>🔧 Kompresi & Dekompresi File Word, PDF, dan Teks dengan Run-Length Encoding</p>", unsafe_allow_html=True)
 
-mode = st.radio("🔄 Pilih Mode", ["Kompresi", "Dekomresi (file RLE ke DOCX)"])
+mode = st.radio("🔄 Pilih Mode", ["Kompresi", "Dekomresi (file DOCX, TXT, PDF ke DOCX)"])
 uploaded_file = st.file_uploader("📁 Unggah file (.docx / .txt / .pdf / .rle):")
 
 if uploaded_file is not None:
@@ -107,10 +125,15 @@ if uploaded_file is not None:
             else:
                 st.error("❌ Format tidak didukung. Gunakan file .docx, .txt, atau .pdf untuk kompresi.")
         else:
-            if ext == ".rle":
-                result_io, result_ext = decompress_rle_to_docx(uploaded_file)
+            # DEKOMPRESI UNTUK .docx, .txt, .pdf
+            if ext == ".docx":
+                result_io, result_ext = decompress_docx_to_docx(uploaded_file)
+            elif ext == ".txt":
+                result_io, result_ext = decompress_txt_to_docx(uploaded_file)
+            elif ext == ".pdf":
+                result_io, result_ext = decompress_pdf_to_pdf(uploaded_file)
             else:
-                st.error("❌ Format tidak didukung. Gunakan file .rle untuk dekompresi.")
+                st.error("❌ Format tidak didukung. Gunakan file .docx, .txt, atau .pdf untuk dekompresi.")
 
     if result_io:
         result_size_kb = get_size_in_kb(len(result_io.getvalue()))
