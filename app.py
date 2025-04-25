@@ -70,7 +70,8 @@ def compress_pdf_to_pdf(uploaded_file):
 
     encoded_text = run_length_encode(full_text)
 
-    # Create a blank PDF (Note: To make PDF with text, you'll need a more advanced PDF library like ReportLab)
+    # Simulate creating a simple PDF with the compressed text.
+    # Normally you'd want a PDF generation library here (e.g., ReportLab)
     new_pdf = PdfWriter()
     new_pdf.add_blank_page()
 
@@ -111,7 +112,7 @@ def decompress_pdf_to_pdf(uploaded_file):
 
     decoded_text = run_length_decode(full_text)
 
-    # Create a blank PDF (Note: To make PDF with text, you'd need a more advanced PDF library like ReportLab)
+    # Simulate creating a simple PDF with the decompressed text.
     new_pdf = PdfWriter()
     new_pdf.add_blank_page()
 
