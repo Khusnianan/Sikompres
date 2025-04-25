@@ -24,7 +24,6 @@ def run_length_encode_custom(text, marker="#"):
             prev_char = char
             count = 1
 
-    # Akhiri dengan sisa karakter
     if count >= 3:
         encoded += f"{marker}{count}{prev_char}"
     else:
@@ -85,6 +84,7 @@ st.markdown("🔧 Kompresi & Dekompresi File (Run-Length Encoding )")
 
 mode = st.radio("Pilih Mode:", ["Kompresi", "Dekompresi"])
 uploaded_file = st.file_uploader("📁 Unggah file", type=["docx", "txt", "pdf"])
+custom_filename = st.text_input("📝 Nama file output (tanpa ekstensi):", value="")
 
 if uploaded_file:
     file_bytes = uploaded_file.read()
@@ -95,7 +95,6 @@ if uploaded_file:
     with st.spinner("⏳ Memproses..."):
         original_size = get_size_in_kb(len(file_bytes))
 
-        # KOMPresi
         if mode == "Kompresi":
             if ext == ".docx":
                 text = extract_text_from_docx(io.BytesIO(file_bytes))
@@ -113,7 +112,6 @@ if uploaded_file:
                 result_io = create_txt_buffer(encoded)
                 result_ext = ".txt"
 
-        # DEKompresi
         else:
             if ext == ".docx":
                 text = extract_text_from_docx(io.BytesIO(file_bytes))
@@ -131,7 +129,9 @@ if uploaded_file:
 
         if result_io:
             result_size = get_size_in_kb(len(result_io.getvalue()))
-            download_name = filename + ("_compressed" if mode == "Kompresi" else "_decompressed") + result_ext
+            default_suffix = "_compressed" if mode == "Kompresi" else "_decompressed"
+            base_name = custom_filename.strip() if custom_filename.strip() else filename + default_suffix
+            download_name = base_name + result_ext
 
             col1, col2 = st.columns(2)
             col1.metric("📄 Ukuran Asli", f"{original_size} KB")
