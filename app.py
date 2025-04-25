@@ -10,7 +10,7 @@ import re
 def get_size_in_kb(size_bytes):
     return round(size_bytes / 1024, 2)
 
-# Function to encode the text with Run-Length Encoding
+# Function to encode the text with Run-Length Encoding (RLE)
 def run_length_encode(text):
     if not text:
         return ""
@@ -27,8 +27,9 @@ def run_length_encode(text):
     compressed.append(f"{count}{prev_char}")
     return ''.join(compressed)
 
-# Function to decode text using Run-Length Encoding
+# Function to decode text using Run-Length Encoding (RLE)
 def run_length_decode(text):
+    # The regex here assumes the format is "number character" for each run.
     pattern = re.compile(r'(\d+)(\D)')
     decompressed = ''.join([int(count) * char for count, char in pattern.findall(text)])
     return decompressed
