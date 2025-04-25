@@ -96,20 +96,20 @@ if uploaded_file:
             if ext == ".docx":
                 text = extract_text_from_docx(io.BytesIO(file_bytes))
                 encoded = run_length_encode_custom(text)
-                # Only return the compressed file if it's smaller than the original file
+                # Hanya kompresi jika ukuran hasil lebih kecil
                 if len(encoded) < original_size:
                     result_io = create_docx_from_text(encoded)
                 else:
-                    result_io = io.BytesIO(file_bytes)  # Keep the original if no compression gain
+                    result_io = io.BytesIO(file_bytes)  # Jika kompresi lebih besar, gunakan file asli
 
             elif ext == ".txt":
                 text = file_bytes.decode("utf-8", errors="ignore")
                 encoded = run_length_encode_custom(text)
-                # Only return the compressed file if it's smaller than the original file
+                # Hanya kompresi jika ukuran hasil lebih kecil
                 if len(encoded) < original_size:
                     result_io = create_txt_buffer(encoded)
                 else:
-                    result_io = io.BytesIO(file_bytes)  # Keep the original if no compression gain
+                    result_io = io.BytesIO(file_bytes)  # Jika kompresi lebih besar, gunakan file asli
 
         # DEKompresi
         else:
