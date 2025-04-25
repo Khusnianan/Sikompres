@@ -4,65 +4,59 @@ from PyPDF2 import PdfReader
 import os
 import io
 
-# -------------------- CONSTANTS --------------------
-MARKER = b'\x00'  # Penanda byte khusus untuk kompresi biner
+# -------------------- RLE Custom Algorithm --------------------
 
+def run_length_encode_custom(text, marker="#"):
+    if not text:
+        return ""
+    encoded = ""
+    prev_char = text[0]
+    count = 1
 
-# -------------------- RLE ALGORITHM (Binary) --------------------
-
-def rle_compress_binary(data: bytes) -> bytes:
-    """Kompresi data biner dengan RLE menggunakan penanda khusus"""
-    output = bytearray()
-    i = 0
-    while i < len(data):
-        count = 1
-        while i + count < len(data) and data[i] == data[i + count] and count < 255:
+    for char in text[1:]:
+        if char == prev_char:
             count += 1
-
-        if count >= 4 or data[i] == MARKER[0]:
-            output.append(MARKER[0])
-            if data[i] == MARKER[0]:
-                output.append(0)  # Escape untuk marker asli
-            else:
-                output.append(count)
-                output.append(data[i])
         else:
-            output.extend(data[i:i + count])
-        i += count
-    return bytes(output)
+            if count >= 3:
+                encoded += f"{marker}{count}{prev_char}"
+            else:
+                encoded += prev_char * count
+            prev_char = char
+            count = 1
 
+    # Akhiri dengan sisa karakter
+    if count >= 3:
+        encoded += f"{marker}{count}{prev_char}"
+    else:
+        encoded += prev_char * count
 
-def rle_decompress_binary(data: bytes) -> bytes:
-    """Dekompresi data biner hasil RLE dengan penanda khusus"""
-    output = bytearray()
+    return encoded
+
+def run_length_decode_custom(text, marker="#"):
+    decoded = ""
     i = 0
-    while i < len(data):
-        if data[i] == MARKER[0]:
+    while i < len(text):
+        if text[i] == marker:
             i += 1
-            if data[i] == 0:
-                output.append(MARKER[0])
+            num = ""
+            while i < len(text) and text[i].isdigit():
+                num += text[i]
                 i += 1
-            else:
-                count = data[i]
-                byte = data[i + 1]
-                output.extend([byte] * count)
-                i += 2
+            if i < len(text):
+                decoded += text[i] * int(num)
+                i += 1
         else:
-            output.append(data[i])
+            decoded += text[i]
             i += 1
-    return bytes(output)
+    return decoded
 
+# -------------------- File Processing --------------------
 
-# -------------------- FILE HANDLING --------------------
-
-def extract_text_from_docx(file) -> bytes:
+def extract_text_from_docx(file) -> str:
     doc = Document(file)
-    text = "\n".join([para.text for para in doc.paragraphs])
-    return text.encode('utf-8')
+    return "\n".join([para.text for para in doc.paragraphs])
 
-
-def create_docx_from_text(text_bytes: bytes) -> io.BytesIO:
-    text = text_bytes.decode('utf-8', errors='ignore')
+def create_docx_from_text(text: str) -> io.BytesIO:
     doc = Document()
     doc.add_paragraph(text)
     buffer = io.BytesIO()
@@ -70,30 +64,27 @@ def create_docx_from_text(text_bytes: bytes) -> io.BytesIO:
     buffer.seek(0)
     return buffer
 
-
-def extract_text_from_pdf(file) -> bytes:
+def extract_text_from_pdf(file) -> str:
     reader = PdfReader(file)
-    text = ""
-    for page in reader.pages:
-        text += page.extract_text() or ""
-    return text.encode('utf-8')
+    return "\n".join([page.extract_text() or "" for page in reader.pages])
 
-
-def create_txt_buffer(content: bytes) -> io.BytesIO:
+def create_txt_buffer(content: str) -> io.BytesIO:
     buffer = io.BytesIO()
-    buffer.write(content)
+    buffer.write(content.encode('utf-8'))
     buffer.seek(0)
     return buffer
 
+def get_size_in_kb(size_bytes):
+    return round(size_bytes / 1024, 2)
 
-# -------------------- UI STREAMLIT --------------------
+# -------------------- UI --------------------
 
 st.set_page_config(page_title="SiKompres", page_icon="🗜️")
 st.title("🗜️ SiKompres")
-st.markdown("🔧 Kompresi & Dekompresi File `.docx`, `.txt`, dan `.pdf` menggunakan **Modified RLE**.")
+st.markdown("🔧 Kompresi & Dekompresi File (.docx, .txt, .pdf) menggunakan format `#<jumlah><karakter>` (Run-Length Encoding Custom)")
 
 mode = st.radio("Pilih Mode:", ["Kompresi", "Dekompresi"])
-uploaded_file = st.file_uploader("Unggah file (.docx, .txt, .pdf)", type=["docx", "txt", "pdf"])
+uploaded_file = st.file_uploader("📁 Unggah file (.docx, .txt, .pdf)", type=["docx", "txt", "pdf"])
 
 if uploaded_file:
     file_bytes = uploaded_file.read()
@@ -101,47 +92,50 @@ if uploaded_file:
     result_io = io.BytesIO()
     result_ext = ext
 
-    with st.spinner("⏳ Memproses file..."):
-        original_size_kb = round(len(file_bytes) / 1024, 2)
+    with st.spinner("⏳ Memproses..."):
+        original_size = get_size_in_kb(len(file_bytes))
 
-        # ------- KOMpresi -------
+        # KOMPresi
         if mode == "Kompresi":
             if ext == ".docx":
-                content = extract_text_from_docx(io.BytesIO(file_bytes))
-                compressed = rle_compress_binary(content)
-                result_io = create_docx_from_text(compressed)
-            elif ext == ".txt":
-                content = file_bytes
-                compressed = rle_compress_binary(content)
-                result_io = create_txt_buffer(compressed)
-            elif ext == ".pdf":
-                content = extract_text_from_pdf(io.BytesIO(file_bytes))
-                compressed = rle_compress_binary(content)
-                result_io = create_txt_buffer(compressed)
-                result_ext = ".txt"  # hasil dari PDF dikompresi ke .txt
+                text = extract_text_from_docx(io.BytesIO(file_bytes))
+                encoded = run_length_encode_custom(text)
+                result_io = create_docx_from_text(encoded)
 
-        # ------- DEkompresi -------
+            elif ext == ".txt":
+                text = file_bytes.decode("utf-8", errors="ignore")
+                encoded = run_length_encode_custom(text)
+                result_io = create_txt_buffer(encoded)
+
+            elif ext == ".pdf":
+                text = extract_text_from_pdf(io.BytesIO(file_bytes))
+                encoded = run_length_encode_custom(text)
+                result_io = create_txt_buffer(encoded)
+                result_ext = ".txt"
+
+        # DEKompresi
         else:
             if ext == ".docx":
-                content = extract_text_from_docx(io.BytesIO(file_bytes))
-                decompressed = rle_decompress_binary(content)
-                result_io = create_docx_from_text(decompressed)
+                text = extract_text_from_docx(io.BytesIO(file_bytes))
+                decoded = run_length_decode_custom(text)
+                result_io = create_docx_from_text(decoded)
+
             elif ext == ".txt":
-                content = file_bytes
-                decompressed = rle_decompress_binary(content)
-                result_io = create_txt_buffer(decompressed)
+                text = file_bytes.decode("utf-8", errors="ignore")
+                decoded = run_length_decode_custom(text)
+                result_io = create_txt_buffer(decoded)
+
             elif ext == ".pdf":
-                st.warning("PDF tidak dapat didekompresi langsung. Harap gunakan file hasil kompresi (.txt/.docx).")
+                st.warning("⚠️ File PDF tidak bisa didekompresi secara langsung. Gunakan file hasil kompresi (.txt/.docx).")
                 result_io = None
 
         if result_io:
-            result_size_kb = round(len(result_io.getvalue()) / 1024, 2)
+            result_size = get_size_in_kb(len(result_io.getvalue()))
             download_name = filename + ("_compressed" if mode == "Kompresi" else "_decompressed") + result_ext
 
             col1, col2 = st.columns(2)
-            col1.metric("Ukuran Asli", f"{original_size_kb} KB")
-            col2.metric("Ukuran Hasil", f"{result_size_kb} KB")
+            col1.metric("📦 Ukuran Asli", f"{original_size} KB")
+            col2.metric("🗜️ Ukuran Hasil", f"{result_size} KB")
 
             st.success("✅ File berhasil diproses.")
             st.download_button("⬇️ Unduh File", data=result_io, file_name=download_name)
-
