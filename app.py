@@ -1,6 +1,5 @@
 import streamlit as st
 from docx import Document
-from PyPDF2 import PdfReader
 import os
 import io
 
@@ -64,10 +63,6 @@ def create_docx_from_text(text: str) -> io.BytesIO:
     buffer.seek(0)
     return buffer
 
-def extract_text_from_pdf(file) -> str:
-    reader = PdfReader(file)
-    return "\n".join([page.extract_text() or "" for page in reader.pages])
-
 def create_txt_buffer(content: str) -> io.BytesIO:
     buffer = io.BytesIO()
     buffer.write(content.encode('utf-8'))
@@ -84,7 +79,7 @@ st.title("📄 SiKompres")
 st.markdown("🔧 Kompresi & Dekompresi File (Run-Length Encoding )")
 
 mode = st.radio("Pilih Mode:", ["Kompresi", "Dekompresi"])
-uploaded_file = st.file_uploader("📁 Unggah file", type=["docx", "txt", "pdf"])
+uploaded_file = st.file_uploader("📁 Unggah file", type=["docx", "txt"])
 
 if uploaded_file:
     file_bytes = uploaded_file.read()
@@ -107,12 +102,6 @@ if uploaded_file:
                 encoded = run_length_encode_custom(text)
                 result_io = create_txt_buffer(encoded)
 
-            elif ext == ".pdf":
-                text = extract_text_from_pdf(io.BytesIO(file_bytes))
-                encoded = run_length_encode_custom(text)
-                result_io = create_txt_buffer(encoded)
-                result_ext = ".txt"
-
         # DEKompresi
         else:
             if ext == ".docx":
@@ -124,10 +113,6 @@ if uploaded_file:
                 text = file_bytes.decode("utf-8", errors="ignore")
                 decoded = run_length_decode_custom(text)
                 result_io = create_txt_buffer(decoded)
-
-            elif ext == ".pdf":
-                st.warning("⚠️ File PDF tidak bisa didekompresi secara langsung. Gunakan file hasil kompresi (.txt/.docx).")
-                result_io = None
 
         if result_io:
             result_size = get_size_in_kb(len(result_io.getvalue()))
