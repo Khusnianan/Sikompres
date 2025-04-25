@@ -14,6 +14,7 @@ def get_size_in_kb(size_bytes):
 def run_length_encode(text):
     if not text:
         return ""
+    
     compressed = []
     prev_char = text[0]
     count = 1
