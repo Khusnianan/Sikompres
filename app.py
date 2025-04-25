@@ -79,8 +79,8 @@ def get_size_in_kb(size_bytes):
 
 # -------------------- UI --------------------
 
-st.set_page_config(page_title="SiKompres", page_icon="🗜️")
-st.title("🗜️ SiKompres")
+st.set_page_config(page_title="SiKompres", page_icon="📄")
+st.title("📄 SiKompres")
 st.markdown("🔧 Kompresi & Dekompresi File (Run-Length Encoding )")
 
 mode = st.radio("Pilih Mode:", ["Kompresi", "Dekompresi"])
@@ -134,7 +134,7 @@ if uploaded_file:
             download_name = filename + ("_compressed" if mode == "Kompresi" else "_decompressed") + result_ext
 
             col1, col2 = st.columns(2)
-            col1.metric("📦 Ukuran Asli", f"{original_size} KB")
+            col1.metric("📄 Ukuran Asli", f"{original_size} KB")
             col2.metric("🗜️ Ukuran Hasil", f"{result_size} KB")
 
             st.success("✅ File berhasil diproses.")
