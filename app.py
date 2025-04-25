@@ -38,7 +38,10 @@ def run_length_decode(text):
 
 def compress_docx_to_docx(uploaded_file):
     doc = Document(uploaded_file)
-    full_text = "\n".join([para.text for para in doc.paragraphs])
+    full_text = ""
+    # Concatenate all paragraphs to a single text block
+    for para in doc.paragraphs:
+        full_text += para.text
     encoded_text = run_length_encode(full_text)
 
     new_doc = Document()
@@ -66,9 +69,10 @@ def compress_pdf_to_pdf(uploaded_file):
 
     encoded_text = run_length_encode(full_text)
 
+    # Create a blank PDF (Note: To make PDF with text, you'll need a more advanced PDF library like ReportLab)
     new_pdf = PdfWriter()
-    new_pdf.add_blank_page()  # For simplicity, we add a blank page, as writing text to PDF is complex.
-    
+    new_pdf.add_blank_page()
+
     compressed_io = io.BytesIO()
     new_pdf.write(compressed_io)
     compressed_io.seek(0)
@@ -76,7 +80,9 @@ def compress_pdf_to_pdf(uploaded_file):
 
 def decompress_docx_to_docx(uploaded_file):
     doc = Document(uploaded_file)
-    full_text = "\n".join([para.text for para in doc.paragraphs])
+    full_text = ""
+    for para in doc.paragraphs:
+        full_text += para.text
     decoded_text = run_length_decode(full_text)
 
     new_doc = Document()
@@ -104,8 +110,9 @@ def decompress_pdf_to_pdf(uploaded_file):
 
     decoded_text = run_length_decode(full_text)
 
+    # Create a blank PDF (Note: To make PDF with text, you'd need a more advanced PDF library like ReportLab)
     new_pdf = PdfWriter()
-    new_pdf.add_blank_page()  # For simplicity, we add a blank page, as writing text to PDF is complex.
+    new_pdf.add_blank_page()
 
     decompressed_io = io.BytesIO()
     new_pdf.write(decompressed_io)
