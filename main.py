@@ -1,5 +1,6 @@
 import streamlit as st
 from io import BytesIO
+from docx import Document
 
 # Fungsi untuk kompresi teks dengan RLE dimodifikasi
 def modified_run_length_encode(data, Sc="#"):
@@ -61,12 +62,29 @@ def run_length_decode_bytes(encoded_data, Sc=b'\xFF'):
             i += 1
     return bytes(decoded)
 
+# Fungsi untuk membaca teks dari file DOCX
+def read_docx(file):
+    doc = Document(file)
+    text = []
+    for para in doc.paragraphs:
+        text.append(para.text)
+    return '\n'.join(text)
+
+# Fungsi untuk menulis teks ke file DOCX
+def write_docx(text):
+    doc = Document()
+    doc.add_paragraph(text)
+    doc_io = BytesIO()
+    doc.save(doc_io)
+    doc_io.seek(0)
+    return doc_io
+
 # Streamlit UI
 st.title("File Compression and Decompression with Run Length Encoding")
-st.write("This tool allows you to compress and decompress text and binary files using modified Run Length Encoding (RLE).")
+st.write("This tool allows you to compress and decompress text, docx, and binary files using modified Run Length Encoding (RLE).")
 
 # Pilih jenis file yang akan diupload
-file_type = st.radio("Choose file type", ('Text', 'Binary (Audio, Video, PDF, etc.)'))
+file_type = st.radio("Choose file type", ('Text', 'Binary (Audio, Video, PDF, etc.)', 'Word (.docx)'))
 
 if file_type == 'Text':
     uploaded_file = st.file_uploader("Upload a text file", type=["txt"])
@@ -111,3 +129,27 @@ elif file_type == 'Binary (Audio, Video, PDF, etc.)':
         decompressed_binary = run_length_decode_bytes(compressed_binary)
         st.subheader("Decompressed Binary File (Verification):")
         st.text(decompressed_binary[:200])  # Tampilkan sebagian awal file biner yang didekompresi
+
+elif file_type == 'Word (.docx)':
+    uploaded_file = st.file_uploader("Upload a Word document (.docx)", type=["docx"])
+
+    if uploaded_file is not None:
+        # Membaca konten file DOCX
+        file_content = read_docx(uploaded_file)
+
+        st.subheader("Original DOCX Content:")
+        st.text(file_content)
+
+        # Kompresi file DOCX
+        compressed_data = modified_run_length_encode(file_content)
+        st.subheader("Compressed DOCX Content:")
+        st.text(compressed_data)
+
+        # Menyediakan tombol untuk mendownload file terkompresi
+        compressed_docx = write_docx(compressed_data)
+        st.download_button("Download Compressed DOCX File", compressed_docx, "compressed.docx", "application/vnd.openxmlformats-officedocument.wordprocessingml.document")
+
+        # Dekompresi file DOCX untuk verifikasi
+        decompressed_data = modified_run_length_decode(compressed_data)
+        st.subheader("Decompressed DOCX Content (Verification):")
+        st.text(decompressed_data)
