@@ -84,7 +84,7 @@ st.title("🗜️ SiKompres")
 st.markdown("🔧 Kompresi & Dekompresi File (Run-Length Encoding )")
 
 mode = st.radio("Pilih Mode:", ["Kompresi", "Dekompresi"])
-uploaded_file = st.file_uploader("📁 Unggah file (.docx, .txt, .pdf)", type=["docx", "txt", "pdf"])
+uploaded_file = st.file_uploader("📁 Unggah file", type=["docx", "txt", "pdf"])
 
 if uploaded_file:
     file_bytes = uploaded_file.read()
