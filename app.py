@@ -1,33 +1,15 @@
 import streamlit as st
-from PIL import Image
+from docx import Document
+from PyPDF2 import PdfReader, PdfWriter
 import os
 import io
-from PyPDF2 import PdfReader, PdfWriter
 
 # Fungsi menghitung ukuran file
 def get_size_in_kb(size_bytes):
     return round(size_bytes / 1024, 2)
 
-# Fungsi kompresi gambar jadi WebP dengan kualitas rendah
-def compress_image(uploaded_file):
-    image = Image.open(uploaded_file).convert("RGB")
-    compressed_io = io.BytesIO()
-    image.save(compressed_io, format='WEBP', quality=10)
-    compressed_io.seek(0)
-    return compressed_io, '.webp'
+# -------------------- RLE ENCODE / DECODE --------------------
 
-# Fungsi kompresi PDF (sederhana, hanya copy ulang halaman)
-def compress_pdf(uploaded_file):
-    reader = PdfReader(uploaded_file)
-    writer = PdfWriter()
-    for page in reader.pages:
-        writer.add_page(page)
-    compressed_io = io.BytesIO()
-    writer.write(compressed_io)
-    compressed_io.seek(0)
-    return compressed_io, '.pdf'
-
-# Fungsi RLE untuk kompresi teks
 def run_length_encode(text):
     if not text:
         return ""
@@ -44,51 +26,90 @@ def run_length_encode(text):
     compressed.append(f"{count}{prev_char}")
     return ''.join(compressed)
 
-# Fungsi kompresi teks dengan RLE
-def compress_text(uploaded_file):
-    text_data = uploaded_file.read().decode('utf-8', errors='ignore')  # baca teks dari file
-    encoded_text = run_length_encode(text_data)
-    
+def run_length_decode(text):
+    import re
+    pattern = re.compile(r'(\d+)(\D)')
+    decompressed = ''.join([int(count) * char for count, char in pattern.findall(text)])
+    return decompressed
+
+# -------------------- FILE HANDLING FUNCTIONS --------------------
+
+# Kompres file DOCX menggunakan RLE
+def compress_docx(uploaded_file):
+    doc = Document(uploaded_file)
+    full_text = "\n".join([para.text for para in doc.paragraphs])
+    encoded_text = run_length_encode(full_text)
+
     compressed_io = io.BytesIO()
     compressed_io.write(encoded_text.encode('utf-8'))
     compressed_io.seek(0)
     return compressed_io, '.rle'
 
-# ---------------------- UI Layout ----------------------
+# Dekompres file RLE menjadi file TXT
+def decompress_rle(uploaded_file):
+    encoded_data = uploaded_file.read().decode('utf-8', errors='ignore')
+    decoded_text = run_length_decode(encoded_data)
 
-st.set_page_config(page_title="Kompres File", page_icon="🗜️")
-st.title("🗜️ Kompres File Online")
-st.markdown("📁 *Unggah file dan kami akan memperkecil ukurannya untukmu!*")
+    decompressed_io = io.BytesIO()
+    decompressed_io.write(decoded_text.encode('utf-8'))
+    decompressed_io.seek(0)
+    return decompressed_io, '.txt'
 
-uploaded_file = st.file_uploader("Pilih file gambar, PDF, atau teks yang ingin dikompres:")
+# Kompres file PDF (copy ulang)
+def compress_pdf(uploaded_file):
+    reader = PdfReader(uploaded_file)
+    writer = PdfWriter()
+    for page in reader.pages:
+        writer.add_page(page)
+    compressed_io = io.BytesIO()
+    writer.write(compressed_io)
+    compressed_io.seek(0)
+    return compressed_io, '.pdf'
+
+# -------------------- UI LAYOUT --------------------
+
+st.set_page_config(page_title="Kompres & Dekompres File", page_icon="🗜️")
+st.title("🗜️ Kompres & Dekompres File Word / PDF")
+st.markdown("Pilih apakah kamu ingin mengompres file atau mendekompres hasil RLE.")
+
+mode = st.radio("Mode Operasi", ["Kompresi", "Dekomresi (khusus file .rle)"])
+
+uploaded_file = st.file_uploader("📁 Unggah file:")
 
 if uploaded_file is not None:
-    with st.spinner("🔄 Mengompres file..."):
-        file_size_kb = get_size_in_kb(len(uploaded_file.getvalue()))
-        filename, ext = os.path.splitext(uploaded_file.name)
-        compressed_data = None
-        new_ext = ext  # default ekstensi
+    file_size_kb = get_size_in_kb(len(uploaded_file.getvalue()))
+    filename, ext = os.path.splitext(uploaded_file.name)
+    result_io = None
+    result_ext = ""
+    download_filename = ""
 
-        # Tentukan metode kompresi berdasarkan jenis file
-        if uploaded_file.type.startswith("image"):
-            compressed_data, new_ext = compress_image(uploaded_file)
-        elif uploaded_file.type == "application/pdf":
-            compressed_data, new_ext = compress_pdf(uploaded_file)
-        elif uploaded_file.type.startswith("text") or ext == ".txt":
-            compressed_data, new_ext = compress_text(uploaded_file)
+    with st.spinner("⏳ Memproses file..."):
 
-        if compressed_data:
-            compressed_size_kb = get_size_in_kb(len(compressed_data.getvalue()))
-            download_filename = filename + "_compressed" + new_ext
+        if mode == "Kompresi":
+            if ext == ".docx":
+                result_io, result_ext = compress_docx(uploaded_file)
+            elif ext == ".pdf":
+                result_io, result_ext = compress_pdf(uploaded_file)
+            else:
+                st.error("❌ Format file tidak didukung untuk kompresi. Hanya .docx dan .pdf yang didukung.")
+        else:  # DEKOMPRESI
+            if ext == ".rle":
+                result_io, result_ext = decompress_rle(uploaded_file)
+            else:
+                st.error("❌ Untuk dekompresi, hanya file .rle yang didukung.")
 
-            col1, col2 = st.columns(2)
-            col1.metric("📦 Ukuran Asli", f"{file_size_kb} KB")
-            col2.metric("🗜️ Ukuran Terkompresi", f"{compressed_size_kb} KB")
+    if result_io:
+        result_size_kb = get_size_in_kb(len(result_io.getvalue()))
+        download_filename = filename + ("_compressed" if mode == "Kompresi" else "_decompressed") + result_ext
 
-            st.success("✅ Kompresi selesai!")
-            st.download_button(
-                label="⬇️ Unduh File Terkompresi",
-                data=compressed_data,
-                file_name=download_filename,
-                mime="application/octet-stream"
-            )
+        col1, col2 = st.columns(2)
+        col1.metric("📦 Ukuran Asli", f"{file_size_kb} KB")
+        col2.metric("📤 Ukuran Hasil", f"{result_size_kb} KB")
+
+        st.success("✅ Berhasil diproses!")
+        st.download_button(
+            label="⬇️ Unduh Hasil",
+            data=result_io,
+            file_name=download_filename,
+            mime="application/octet-stream"
+        )
