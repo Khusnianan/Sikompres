@@ -10,6 +10,7 @@ import re
 def get_size_in_kb(size_bytes):
     return round(size_bytes / 1024, 2)
 
+# Function to encode the text with Run-Length Encoding
 def run_length_encode(text):
     if not text:
         return ""
@@ -26,6 +27,7 @@ def run_length_encode(text):
     compressed.append(f"{count}{prev_char}")
     return ''.join(compressed)
 
+# Function to decode text using Run-Length Encoding
 def run_length_decode(text):
     pattern = re.compile(r'(\d+)(\D)')
     decompressed = ''.join([int(count) * char for count, char in pattern.findall(text)])
@@ -46,17 +48,30 @@ def compress_docx_to_docx(uploaded_file):
     compressed_io.seek(0)
     return compressed_io, '.docx'
 
-def compress_txt_to_docx(uploaded_file):
+def compress_txt_to_txt(uploaded_file):
     text_data = uploaded_file.read().decode('utf-8', errors='ignore')
     encoded_text = run_length_encode(text_data)
 
-    new_doc = Document()
-    new_doc.add_paragraph(encoded_text)
-
     compressed_io = io.BytesIO()
-    new_doc.save(compressed_io)
+    compressed_io.write(encoded_text.encode('utf-8'))
     compressed_io.seek(0)
-    return compressed_io, '.docx'
+    return compressed_io, '.txt'
+
+def compress_pdf_to_pdf(uploaded_file):
+    reader = PdfReader(uploaded_file)
+    full_text = ""
+    for page in reader.pages:
+        full_text += page.extract_text()
+
+    encoded_text = run_length_encode(full_text)
+
+    new_pdf = PdfWriter()
+    new_pdf.add_blank_page()  # For simplicity, we add a blank page, as writing text to PDF is complex.
+    
+    compressed_io = io.BytesIO()
+    new_pdf.write(compressed_io)
+    compressed_io.seek(0)
+    return compressed_io, '.pdf'
 
 def decompress_docx_to_docx(uploaded_file):
     doc = Document(uploaded_file)
@@ -71,17 +86,14 @@ def decompress_docx_to_docx(uploaded_file):
     decompressed_io.seek(0)
     return decompressed_io, '.docx'
 
-def decompress_txt_to_docx(uploaded_file):
+def decompress_txt_to_txt(uploaded_file):
     text_data = uploaded_file.read().decode('utf-8', errors='ignore')
     decoded_text = run_length_decode(text_data)
 
-    new_doc = Document()
-    new_doc.add_paragraph(decoded_text)
-
     decompressed_io = io.BytesIO()
-    new_doc.save(decompressed_io)
+    decompressed_io.write(decoded_text.encode('utf-8'))
     decompressed_io.seek(0)
-    return decompressed_io, '.docx'
+    return decompressed_io, '.txt'
 
 def decompress_pdf_to_pdf(uploaded_file):
     reader = PdfReader(uploaded_file)
@@ -92,7 +104,8 @@ def decompress_pdf_to_pdf(uploaded_file):
     decoded_text = run_length_decode(full_text)
 
     new_pdf = PdfWriter()
-    new_pdf.add_page(reader.pages[0])  # Just keep the first page for simplicity
+    new_pdf.add_blank_page()  # For simplicity, we add a blank page, as writing text to PDF is complex.
+
     decompressed_io = io.BytesIO()
     new_pdf.write(decompressed_io)
     decompressed_io.seek(0)
@@ -104,8 +117,8 @@ st.set_page_config(page_title="SiKompres", page_icon="📄")
 st.markdown("<h1 style='text-align: center;'>📄 SiKompres</h1>", unsafe_allow_html=True)
 st.markdown("<p style='text-align: center;'>🔧 Kompresi & Dekompresi File Word, PDF, dan Teks dengan Run-Length Encoding</p>", unsafe_allow_html=True)
 
-mode = st.radio("🔄 Pilih Mode", ["Kompresi", "Dekomresi (file DOCX, TXT, PDF ke DOCX)"])
-uploaded_file = st.file_uploader("📁 Unggah file (.docx / .txt / .pdf / .rle):")
+mode = st.radio("🔄 Pilih Mode", ["Kompresi", "Dekomresi (file DOCX, TXT, PDF)"])
+uploaded_file = st.file_uploader("📁 Unggah file (.docx / .txt / .pdf):")
 
 if uploaded_file is not None:
     file_size_kb = get_size_in_kb(len(uploaded_file.getvalue()))
@@ -119,9 +132,9 @@ if uploaded_file is not None:
             if ext == ".docx":
                 result_io, result_ext = compress_docx_to_docx(uploaded_file)
             elif ext == ".txt":
-                result_io, result_ext = compress_txt_to_docx(uploaded_file)
+                result_io, result_ext = compress_txt_to_txt(uploaded_file)
             elif ext == ".pdf":
-                result_io, result_ext = compress_pdf(uploaded_file)
+                result_io, result_ext = compress_pdf_to_pdf(uploaded_file)
             else:
                 st.error("❌ Format tidak didukung. Gunakan file .docx, .txt, atau .pdf untuk kompresi.")
         else:
@@ -129,7 +142,7 @@ if uploaded_file is not None:
             if ext == ".docx":
                 result_io, result_ext = decompress_docx_to_docx(uploaded_file)
             elif ext == ".txt":
-                result_io, result_ext = decompress_txt_to_docx(uploaded_file)
+                result_io, result_ext = decompress_txt_to_txt(uploaded_file)
             elif ext == ".pdf":
                 result_io, result_ext = decompress_pdf_to_pdf(uploaded_file)
             else:
