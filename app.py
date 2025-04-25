@@ -1,7 +1,6 @@
 import streamlit as st
 from PIL import Image
 import os
-import zipfile
 import io
 from PyPDF2 import PdfReader, PdfWriter
 
@@ -17,7 +16,7 @@ def compress_image(uploaded_file):
     compressed_io.seek(0)
     return compressed_io, '.webp'
 
-# Fungsi kompresi PDF
+# Fungsi kompresi PDF (sederhana, hanya copy ulang halaman)
 def compress_pdf(uploaded_file):
     reader = PdfReader(uploaded_file)
     writer = PdfWriter()
@@ -28,13 +27,32 @@ def compress_pdf(uploaded_file):
     compressed_io.seek(0)
     return compressed_io, '.pdf'
 
-# Fungsi kompresi teks
+# Fungsi RLE untuk kompresi teks
+def run_length_encode(text):
+    if not text:
+        return ""
+    compressed = []
+    prev_char = text[0]
+    count = 1
+    for char in text[1:]:
+        if char == prev_char:
+            count += 1
+        else:
+            compressed.append(f"{count}{prev_char}")
+            prev_char = char
+            count = 1
+    compressed.append(f"{count}{prev_char}")
+    return ''.join(compressed)
+
+# Fungsi kompresi teks dengan RLE
 def compress_text(uploaded_file):
+    text_data = uploaded_file.read().decode('utf-8', errors='ignore')  # baca teks dari file
+    encoded_text = run_length_encode(text_data)
+    
     compressed_io = io.BytesIO()
-    with zipfile.ZipFile(compressed_io, 'w', zipfile.ZIP_DEFLATED) as zipf:
-        zipf.writestr(uploaded_file.name, uploaded_file.getvalue())
+    compressed_io.write(encoded_text.encode('utf-8'))
     compressed_io.seek(0)
-    return compressed_io, '.zip'
+    return compressed_io, '.rle'
 
 # ---------------------- UI Layout ----------------------
 
