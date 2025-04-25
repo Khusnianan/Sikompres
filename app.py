@@ -81,7 +81,7 @@ def get_size_in_kb(size_bytes):
 
 st.set_page_config(page_title="SiKompres", page_icon="🗜️")
 st.title("🗜️ SiKompres")
-st.markdown("🔧 Kompresi & Dekompresi File (.docx, .txt, .pdf) menggunakan format `#<jumlah><karakter>` (Run-Length Encoding Custom)")
+st.markdown("🔧 Kompresi & Dekompresi File (Run-Length Encoding )")
 
 mode = st.radio("Pilih Mode:", ["Kompresi", "Dekompresi"])
 uploaded_file = st.file_uploader("📁 Unggah file (.docx, .txt, .pdf)", type=["docx", "txt", "pdf"])
