@@ -1,5 +1,6 @@
 import streamlit as st
 from docx import Document
+from PyPDF2 import PdfReader
 import os
 import io
 
@@ -8,7 +9,6 @@ import io
 def run_length_encode_custom(text, marker="#"):
     if not text:
         return ""
-    
     encoded = ""
     prev_char = text[0]
     count = 1
@@ -17,7 +17,6 @@ def run_length_encode_custom(text, marker="#"):
         if char == prev_char:
             count += 1
         else:
-            # Apply compression only for sequences longer than 2 characters
             if count >= 3:
                 encoded += f"{marker}{count}{prev_char}"
             else:
@@ -65,6 +64,10 @@ def create_docx_from_text(text: str) -> io.BytesIO:
     buffer.seek(0)
     return buffer
 
+def extract_text_from_pdf(file) -> str:
+    reader = PdfReader(file)
+    return "\n".join([page.extract_text() or "" for page in reader.pages])
+
 def create_txt_buffer(content: str) -> io.BytesIO:
     buffer = io.BytesIO()
     buffer.write(content.encode('utf-8'))
@@ -78,10 +81,10 @@ def get_size_in_kb(size_bytes):
 
 st.set_page_config(page_title="SiKompres", page_icon="📄")
 st.title("📄 SiKompres")
-st.markdown("🔧 Kompresi & Dekompresi File (Run-Length Encoding)")
+st.markdown("🔧 Kompresi & Dekompresi File (Run-Length Encoding )")
 
 mode = st.radio("Pilih Mode:", ["Kompresi", "Dekompresi"])
-uploaded_file = st.file_uploader("📁 Unggah file", type=["docx", "txt"])
+uploaded_file = st.file_uploader("📁 Unggah file", type=["docx", "txt", "pdf"])
 
 if uploaded_file:
     file_bytes = uploaded_file.read()
@@ -97,20 +100,18 @@ if uploaded_file:
             if ext == ".docx":
                 text = extract_text_from_docx(io.BytesIO(file_bytes))
                 encoded = run_length_encode_custom(text)
-                # Hanya kompresi jika ukuran hasil lebih kecil dari file asli
-                if len(encoded) < original_size:
-                    result_io = create_docx_from_text(encoded)
-                else:
-                    result_io = io.BytesIO(file_bytes)  # Jika kompresi lebih besar, gunakan file asli
+                result_io = create_docx_from_text(encoded)
 
             elif ext == ".txt":
                 text = file_bytes.decode("utf-8", errors="ignore")
                 encoded = run_length_encode_custom(text)
-                # Hanya kompresi jika ukuran hasil lebih kecil dari file asli
-                if len(encoded) < original_size:
-                    result_io = create_txt_buffer(encoded)
-                else:
-                    result_io = io.BytesIO(file_bytes)  # Jika kompresi lebih besar, gunakan file asli
+                result_io = create_txt_buffer(encoded)
+
+            elif ext == ".pdf":
+                text = extract_text_from_pdf(io.BytesIO(file_bytes))
+                encoded = run_length_encode_custom(text)
+                result_io = create_txt_buffer(encoded)
+                result_ext = ".txt"
 
         # DEKompresi
         else:
@@ -124,6 +125,10 @@ if uploaded_file:
                 decoded = run_length_decode_custom(text)
                 result_io = create_txt_buffer(decoded)
 
+            elif ext == ".pdf":
+                st.warning("⚠️ File PDF tidak bisa didekompresi secara langsung. Gunakan file hasil kompresi (.txt/.docx).")
+                result_io = None
+
         if result_io:
             result_size = get_size_in_kb(len(result_io.getvalue()))
             download_name = filename + ("_compressed" if mode == "Kompresi" else "_decompressed") + result_ext
@@ -134,3 +139,5 @@ if uploaded_file:
 
             st.success("✅ File berhasil diproses.")
             st.download_button("⬇️ Unduh File", data=result_io, file_name=download_name)
+
+buatkan ketika file telah terkompresi dengan run length, kecilkan ukuran file nya
