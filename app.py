@@ -16,6 +16,7 @@ def run_length_encode_custom(text, marker="#"):
         if char == prev_char:
             count += 1
         else:
+            # Apply compression only for sequences longer than 2 characters
             if count >= 3:
                 encoded += f"{marker}{count}{prev_char}"
             else:
@@ -95,12 +96,20 @@ if uploaded_file:
             if ext == ".docx":
                 text = extract_text_from_docx(io.BytesIO(file_bytes))
                 encoded = run_length_encode_custom(text)
-                result_io = create_docx_from_text(encoded)
+                # Only return the compressed file if it's smaller than the original file
+                if len(encoded) < original_size:
+                    result_io = create_docx_from_text(encoded)
+                else:
+                    result_io = io.BytesIO(file_bytes)  # Keep the original if no compression gain
 
             elif ext == ".txt":
                 text = file_bytes.decode("utf-8", errors="ignore")
                 encoded = run_length_encode_custom(text)
-                result_io = create_txt_buffer(encoded)
+                # Only return the compressed file if it's smaller than the original file
+                if len(encoded) < original_size:
+                    result_io = create_txt_buffer(encoded)
+                else:
+                    result_io = io.BytesIO(file_bytes)  # Keep the original if no compression gain
 
         # DEKompresi
         else:
