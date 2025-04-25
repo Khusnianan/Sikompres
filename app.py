@@ -139,5 +139,3 @@ if uploaded_file:
 
             st.success("✅ File berhasil diproses.")
             st.download_button("⬇️ Unduh File", data=result_io, file_name=download_name)
-
-buatkan ketika file telah terkompresi dengan run length, kecilkan ukuran file nya
