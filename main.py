@@ -1,6 +1,7 @@
 import streamlit as st
 from docx import Document
 import io
+import zipfile
 
 # Fungsi untuk kompresi (Run Length Encoding)
 def compress(data):
@@ -33,6 +34,18 @@ def read_docx(file):
     doc = Document(io.BytesIO(file.read()))
     return "\n".join([para.text for para in doc.paragraphs])
 
+# Fungsi untuk menulis file .txt
+def write_txt(content):
+    return content.encode("utf-8")
+
+# Fungsi untuk menulis file .docx
+def write_docx(content):
+    doc = Document()
+    doc.add_paragraph(content)
+    output = io.BytesIO()
+    doc.save(output)
+    return output.getvalue()
+
 # UI Streamlit
 st.title('Run Length Encoding (RLE) Compression & Decompression')
 
@@ -40,35 +53,46 @@ st.title('Run Length Encoding (RLE) Compression & Decompression')
 uploaded_file = st.file_uploader("Pilih file untuk di-upload", type=["txt", "docx"])
 
 if uploaded_file is not None:
+    # Menampilkan ukuran file yang di-upload
+    file_size = len(uploaded_file.getvalue())
+    st.write(f"Ukuran file yang di-upload: {file_size} bytes")
+
     # Membaca konten file
     if uploaded_file.type == "text/plain":
         input_data = read_txt(uploaded_file)
     elif uploaded_file.type == "application/vnd.openxmlformats-officedocument.wordprocessingml.document":
         input_data = read_docx(uploaded_file)
     
-    st.write(f"### Konten file yang di-upload:")
-    st.text_area("Isi file:", input_data, height=200)
-
     # Kompresi
     st.write("### Kompresi")
     if st.button('Kompresi'):
         if input_data:
             compressed_result = compress(input_data)
-            st.write('Data yang dikompresi:', compressed_result)
+            compressed_data = decompress(compressed_result)  # Dekompresi kembali untuk mendapatkan hasil asli
+            compressed_file_size = len(write_txt(compressed_data) if uploaded_file.type == "text/plain" else write_docx(compressed_data))
+            st.write(f"Ukuran file setelah kompresi: {compressed_file_size} bytes")
+
+            # Menyediakan file terkompresi untuk diunduh
+            if uploaded_file.type == "text/plain":
+                st.download_button("Unduh file terkompresi (TXT)", write_txt(compressed_data), "compressed.txt")
+            elif uploaded_file.type == "application/vnd.openxmlformats-officedocument.wordprocessingml.document":
+                st.download_button("Unduh file terkompresi (DOCX)", write_docx(compressed_data), "compressed.docx")
         else:
             st.warning('File kosong, tidak dapat diproses.')
 
     # Dekompresi
     st.write("### Dekompresi")
-    compressed_input = st.text_area('Masukkan data terkompresi untuk dekompresi:', "")
-
     if st.button('Dekompresi'):
-        if compressed_input:
-            try:
-                compressed_data = eval(compressed_input)  # Mengonversi string ke list of tuples
-                decompressed_result = decompress(compressed_data)
-                st.write('Data setelah didekompresi:', decompressed_result)
-            except:
-                st.error('Data terkompresi tidak valid, pastikan formatnya benar.')
+        if input_data:
+            compressed_result = compress(input_data)
+            decompressed_result = decompress(compressed_result)
+            decompressed_file_size = len(write_txt(decompressed_result) if uploaded_file.type == "text/plain" else write_docx(decompressed_result))
+            st.write(f"Ukuran file setelah dekompresi: {decompressed_file_size} bytes")
+
+            # Menyediakan file terdekompresi untuk diunduh
+            if uploaded_file.type == "text/plain":
+                st.download_button("Unduh file terdekompresi (TXT)", write_txt(decompressed_result), "decompressed.txt")
+            elif uploaded_file.type == "application/vnd.openxmlformats-officedocument.wordprocessingml.document":
+                st.download_button("Unduh file terdekompresi (DOCX)", write_docx(decompressed_result), "decompressed.docx")
         else:
-            st.warning('Harap masukkan data terkompresi untuk didekompresi.')
+            st.warning('File kosong, tidak dapat diproses.')
